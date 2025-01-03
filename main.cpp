@@ -5,11 +5,11 @@
 #include "soapStub.h"
 #include "soapPullPointSubscriptionBindingProxy.h"
 #include "soapRemoteDiscoveryBindingProxy.h" 
-#include "plugin/wsddapi.h"
-#include "plugin/wsseapi.h"
+#include "wsddapi.h"
+#include "wsseapi.h"
 #include "wsdd.nsmap"
 #include "httpda.h"
-
+    
 #include <regex>
 #include <iostream>
 #include <string>
@@ -614,3 +614,8 @@ void CRYPTO_thread_cleanup()
 { }
 
 #endif
+
+
+
+
+/*c++ -o ipcamera -Wall -std=c++11 -DWITH_OPENSSL -DWITH_DOM -DWITH_ZLIB -I. -I ~/gsoap-2.8/gsoap/plugin -I ~/gsoap-2.8/gsoap/custom -I ~/gsoap-2.8/gsoap/plugin main.cpp soapC.cpp wsddClient.cpp wsddServer.cpp soapAdvancedSecurityServiceBindingProxy.cpp soapDeviceBindingProxy.cpp soapDeviceIOBindingProxy.cpp soapImagingBindingProxy.cpp soapMediaBindingProxy.cpp soapPTZBindingProxy.cpp soapPullPointSubscriptionBindingProxy.cpp soapRemoteDiscoveryBindingProxy.cpp ~/gsoap-2.8/gsoap/stdsoap2.cpp ~/gsoap-2.8/gsoap/dom.cpp ~/gsoap-2.8/gsoap/plugin/smdevp.c ~/gsoap-2.8/gsoap/plugin/mecevp.c ~/gsoap-2.8/gsoap/plugin/wsaapi.c ~/gsoap-2.8/gsoap/plugin/wsseapi.c ~/gsoap-2.8/gsoap/plugin/wsddapi.c ~/gsoap-2.8/gsoap/plugin/httpda.c ~/gsoap-2.8/gsoap/custom/struct_timeval.c -lcrypto -lssl -lz -lpthread*/
