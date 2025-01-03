@@ -17,7 +17,7 @@
 
 #define USERNAME "admin"
 #define PASSWORD "Password_01"
-#define HOSTNAME "192.168.20.104"
+#define HOSTNAME "192.168.20.123"
 
 int CRYPTO_thread_setup();
 void CRYPTO_thread_cleanup();
@@ -149,6 +149,7 @@ void save_snapshot(int i, const char *endpoint)
 }
 
 
+
 int main()
 {
  
@@ -186,6 +187,9 @@ int main()
   std::cout << "SerialNumber:    " << GetDeviceInformationResponse.SerialNumber << std::endl;
   std::cout << "HardwareId:      " << GetDeviceInformationResponse.HardwareId << std::endl;
 
+
+
+    
   // get device capabilities and print media
   _tds__GetCapabilities GetCapabilities;
   _tds__GetCapabilitiesResponse GetCapabilitiesResponse;
@@ -220,6 +224,9 @@ int main()
   // set the Media proxy endpoint to XAddr
   proxyMedia.soap_endpoint = GetCapabilitiesResponse.Capabilities->Media->XAddr.c_str();
 
+ // proxyMedia.soap_endpoint = "http://192.168.20.104/onvif/device_service";
+  std::cout << "endpoint: " << proxyMedia.soap_endpoint << std::endl;
+
   // get device profiles
   _trt__GetProfiles GetProfiles;
   _trt__GetProfilesResponse GetProfilesResponse;
@@ -231,6 +238,30 @@ int main()
   // for each profile get snapshot
   for (int i = 0; i < GetProfilesResponse.Profiles.size(); ++i)
   {
+
+       // Ottieni lo stream URI direttamente nel main
+   //proxyMedia.soap_endpoint = GetCapabilitiesResponse.Capabilities->Media->XAddr.c_str(); // Imposta l'endpoint media
+   _trt__GetStreamUri GetStreamUri;
+   _trt__GetStreamUriResponse GetStreamUriResponse;
+   GetStreamUri.ProfileToken = GetProfilesResponse.Profiles[i]->token;
+   set_credentials(soap);
+        
+   std::cout << "Media service endpoint: " << proxyMedia.soap_endpoint << " - " << GetProfilesResponse.Profiles[i]->token <<std::endl;
+
+   if (proxyMedia.GetStreamUri(&GetStreamUri, GetStreamUriResponse)) {
+       report_error(soap, __LINE__);
+   }
+   check_response(soap);
+
+   if (GetStreamUriResponse.MediaUri) {
+       std::cout << "Stream URI: " << GetStreamUriResponse.MediaUri->Uri << std::endl;
+       
+   } else {
+       std::cerr << "Failed to retrieve stream URI" << std::endl;
+   }
+
+   
+   
     // get snapshot URI for profile
     _trt__GetSnapshotUri GetSnapshotUri;
     _trt__GetSnapshotUriResponse GetSnapshotUriResponse;
@@ -244,12 +275,15 @@ int main()
       save_snapshot(i, GetSnapshotUriResponse.MediaUri->Uri.c_str());
   }
 
+  
+
   // free all deserialized and managed data, we can still reuse the context and proxies after this
   soap_destroy(soap);
   soap_end(soap);
 
   // free the shared context, proxy classes must terminate as well after this
   soap_free(soap);
+
   
 
   // clean up OpenSSL mutex
