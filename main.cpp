@@ -18,15 +18,6 @@
 #define USERNAME "admin"
 #define PASSWORD "Password_01"
 #define HOSTNAME "192.168.20.104"
-// using http instead of https is not safe unless you secure message integrity with WS-Security by uncommenting:
-// #define PROTECT
-
-
-#ifdef PROTECT
-// define some global data that is set once, to keep this example simple
-EVP_PKEY *privk = NULL;
-X509 *cert = NULL;
-#endif
 
 int CRYPTO_thread_setup();
 void CRYPTO_thread_cleanup();
@@ -41,23 +32,6 @@ void report_error (struct soap *soap, int lineno)
   SOAP_OK;
 }
 
-
-// to report an error
-// void report_error_new(struct soap *soap)
-// {
-//   std::cerr << "Oops, something went wrong:" << std::endl;
-//   if (soap->error != SOAP_OK)
-//   {
-//     if (soap->error == SOAP_OK)  // Gestisci solo errori specifici
-//     {
-//       std::cerr << "Ignoring non-critical error, continuing..." << std::endl;
-//       return;  // Continua senza terminare
-//     }
-//   }
-//   soap_stream_fault(soap, std::cerr);
-//   exit(EXIT_FAILURE);
-// }
-
 static void set_device_endpoint(DeviceBindingProxy *dev)
 {
 	static char soap_endpoint[1024];
@@ -69,303 +43,111 @@ static void set_device_endpoint(DeviceBindingProxy *dev)
 // to set the timestamp and authentication credentials in a request message
 void set_credentials(struct soap *soap)
 {
-  //soap_wsse_delete_Security(soap);
-  // if (soap_wsse_add_Timestamp(soap, "Time", 10) || soap_wsse_add_UsernameTokenDigest(soap, "Auth", "admin", "Password_01"))
+  
   soap_wsse_add_Timestamp(soap, "Time", 10);
   if (soap_wsse_add_UsernameTokenDigest(soap, "auth", USERNAME, PASSWORD))
     report_error(soap, __LINE__);
-#ifdef PROTECT
-  if (!privk)
-  {
-    FILE *fd = fopen("client.pem");
-    if (fd)
-    {
-      privk = PEM_read_PrivateKey(fd, NULL, NULL, (void*)"password");
-      fclose(fd);
-    }
-    if (!privk)
-    {
-      fprintf(stderr, "Could not read private key from client.pem\n");
-      exit(EXIT_FAILURE);
-    }
-  }
-  if (!cert)
-  {
-    FILE *fd = fopen("clientcert.pem", "r");
-    if (fd)
-    {
-      cert = PEM_read_X509(fd, NULL, NULL, NULL);
-      fclose(fd);
-    }
-    if (!cert)
-    {
-      fprintf(stderr, "Could not read certificate from clientcert.pem\n");
-      exit(EXIT_FAILURE);
-    }
-  }
-  if (soap_wsse_add_BinarySecurityTokenX509(soap, "X509Token", cert)
-   || soap_wsse_add_KeyInfo_SecurityTokenReferenceX509(soap, "#X509Token")
-   || soap_wsse_sign_body(soap, SOAP_SMD_SIGN_RSA_SHA256, rsa_privk, 0)
-   || soap_wsse_verify_auto(soap, SOAP_SMD_NONE, NULL, 0))
-    report_error(soap, __LINE__);
-#endif
+
 }
 
 // to check if an ONVIF service response was signed with WS-Security (when enabled)
 void check_response(struct soap *soap)
 {
-#ifdef PROTECT
-  // check if the server returned a signed message body, if not error
-  if (soap_wsse_verify_body(soap))
-    report_error(soap, __LINE__);
-  soap_wsse_delete_Security(soap);
-#endif
+
 }
 
 // to download a snapshot and save it locally in the current dir as image-1.jpg, image-2.jpg, image-3.jpg ...
 void save_snapshot(int i, const char *endpoint)
 {
-  char filename[32];
-  (SOAP_SNPRINTF_SAFE(filename, 32), "image-%d.jpg", i);
-  FILE *fd = fopen(filename, "wb");
-  if (!fd)
-  {
-    std::cerr << "Cannot open " << filename << " for writing" << std::endl;
-    exit(EXIT_FAILURE);
-  }
+    char filename[32];
+    (SOAP_SNPRINTF_SAFE(filename, 32), "image-%d.jpg", i);
+    FILE *fd = fopen(filename, "wb");
+    if (!fd)
+    {
+        std::cerr << "Cannot open " << filename << " for writing" << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
-  // create a temporary context to retrieve the image with HTTP GET
-  struct soap *soap = soap_new();
-  // soap_register_plugin(soap, soap_wsse); // Registrare WS-Security nuovo
-  soap_register_plugin(soap, http_da);    // Registro plugin digest http autentication
-  struct http_da_info info;
-  //soap->fignore = skip_unknown;
-  soap->connect_timeout = soap->recv_timeout = soap->send_timeout = 10; // 10 sec
+    // create a temporary context to retrieve the image with HTTP GET
+    struct soap *soap = soap_new();
+    // soap_register_plugin(soap, soap_wsse); // Registrare WS-Security nuovo
+    soap_register_plugin(soap, http_da);    // Registro plugin digest http autentication
+    struct http_da_info info;
+    
+    soap->connect_timeout = soap->recv_timeout = soap->send_timeout = 10; // 10 sec
 
-  //// Configurazione utente
-  //  soap->userid = "admin";
-  //  soap->passwd = "Password_01";
-
-  //  std::cout << "GET " << endpoint << std::endl;
-
-    // Primo tentativo per ottenere il nonce (Digest Authentication)
-  //  if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
-  //      if (soap->error == 401 && soap->authrealm) {
-  //          // Digest Auth fallita, ma abbiamo il realm
-  //          std::cout << "Retrying with Digest Authentication" << std::endl;
-
-  //          if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
-  //              report_error(soap, __LINE__); // Se fallisce anche con Digest
-  //          }
-  //      } else {
-  //          report_error(soap, __LINE__); // Altri errori
-  //      }
-  //  }
-
-  //  std::cout << "Retrieving " << filename;
-  //  if (soap->http_content)
-  //      std::cout << " of type " << soap->http_content;
-  //  std::cout << " from " << endpoint << std::endl;
-
-    // Salva immagine
-  //  size_t imagelen;
-  //  char *image = soap_http_get_body(soap, &imagelen);
-  //  fwrite(image, 1, imagelen, fd);
-  //  fclose(fd);
-
-    // Cleanup
-   // soap_destroy(soap);
-   // soap_end(soap);
-   // soap_free(soap);
-///}
-
-  // enable https connections with server certificate verification using cacerts.pem
-  //// if (soap_ssl_client_context(soap, SOAP_SSL_SKIP_HOST_CHECK, NULL, NULL, "cacerts.pem", NULL, NULL))
-  if (soap_ssl_client_context(soap, SOAP_SSL_NO_AUTHENTICATION, NULL, NULL, NULL, NULL, NULL)){
-    report_error(soap, __LINE__);
-  }
+    if (soap_ssl_client_context(soap, SOAP_SSL_NO_AUTHENTICATION, NULL, NULL, NULL, NULL, NULL)){
+        report_error(soap, __LINE__);
+    }
 
     std::cout << "GET " << endpoint << std::endl;
 
-  // HTTP GET and save image
-  /*if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap))
-  {
-		std::cout << "Auth realm " << soap->authrealm << " HTTP status code " << soap->status << std::endl;
-
-		if (soap->authrealm) {
-      std::cout << "Sono nell'if" <<std::endl;
-      soap_wsse_delete_Security(soap);
-      //soap_wsse_add_Timestamp(soap, "Time", 10);
-      //if (soap_wsse_add_UsernameTokenDigest(soap, "Auth", USERNAME, PASSWORD))
-      //report_error(soap, __LINE__);
-//			//try HTTP auth
-			soap->userid = "admin";
-			soap->passwd = "Password_01";
-			if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap))
-				report_error(soap, __LINE__);
-		}
-		else
-			report_error(soap, __LINE__);
-	}
-    */
- /*  if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
+    // First attempt with Digest Authentication
+    if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap))
+    {
         std::cout << "HTTP status: " << soap->status << " | Auth realm: " 
                   << (soap->authrealm ? soap->authrealm : "None") << std::endl;
 
-        if (soap->status == 401 && soap->authrealm) {
-            // Tentativo con Digest Authentication
+        if (soap->status == 401 && soap->authrealm)
+        {
+            // Attempt with Digest Authentication
             std::cout << "Tentativo con Digest Authentication..." << std::endl;
-            std::cout << "Received Digest challenge!" << std::endl;
-            //std::cout << "Authrealm: " << soap->authrealm << std::endl;  // Dovresti vedere il valore del realm
-            std::cout << "User: " << soap->userid << " Password: " << soap->passwd << std::endl;  // Verifica che i credenziali siano corretti
-            std::cout << "STATO: " << soap->status << std::endl;
 
-            
-
-
-
-            // strcpy(soap->userid, USERNAME);
-            soap->userid = USERNAME;
-            soap->passwd = PASSWORD;
-            soap->authrealm = soap_strdup(soap, soap->authrealm); // Imposta il realm
-
-            std::cout << soap->userid << " - " << soap->passwd << " - " << soap->authrealm << std::endl;
+            soap_strdup(soap, soap->authrealm);
+            http_da_save(soap, &info, soap->authrealm, USERNAME, PASSWORD);
 
             if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
-                // Digest fallito, tentativo con WS-Security
-                std::cout << "Digest Authentication fallita. Tentativo con WS-Security..." << std::endl;
-
-                soap_wsse_delete_Security(soap);
-                if (soap_wsse_add_Timestamp(soap, "Time", 10) ||
-                    soap_wsse_add_UsernameTokenDigest(soap, "auth", USERNAME, PASSWORD)) {
-                    report_error(soap, __LINE__);
-                }
-
-                // Riprova la richiesta con WS-Security
-                if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
-                    std::cerr << "WS-Security fallito." << std::endl;
-                    report_error(soap, __LINE__);
-                     // Inserisci il nuovo blocco qui
-                std::cout << "Tentativo diretto con solo nome utente e password..." << std::endl;
-                soap->userid = USERNAME;
-                soap->passwd = PASSWORD;
-
-                if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
-                    std::cerr << "Autenticazione diretta fallita." << std::endl;
-                } else {
-                    std::cout << "Autenticazione diretta riuscita!" << std::endl;
-                    return; // Esci dalla funzione se il tentativo diretto ha successo
-                }
-                } 
-                
-                else {
-                    std::cout << "Autenticazione con WS-Security riuscita!" << std::endl;
-                }
+                std::cout << "Errore con Digest Authentication..." << std::endl;
             } else {
                 std::cout << "Autenticazione con Digest Authentication riuscita!" << std::endl;
             }
-        } else if (soap->authrealm) {
-            // Tentativo iniziale con HTTP Basic Auth
-            std::cout << "Tentativo con HTTP Basic Auth..." << std::endl;
+
+            http_da_release(soap, &info); // release if auth is no longer needed
+        }
+        else
+        {
+            // Attempt with HTTP Basic Authentication
+            std::cout << "Tentativo con HTTP Basic Authentication..." << std::endl;
             soap->userid = USERNAME;
             soap->passwd = PASSWORD;
-
-            if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)) {
-                std::cerr << "HTTP Basic Auth fallito." << std::endl;
+            if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap))
+            {
+                std::cerr << "HTTP Basic Authentication fallita." << std::endl;
                 report_error(soap, __LINE__);
-            } else {
-                std::cout << "Autenticazione con HTTP Basic Auth riuscita!" << std::endl;
             }
-        } else {
-            // Errore generale se tutte le autenticazioni falliscono
-            report_error(soap, __LINE__);
+            else
+            {
+                std::cout << "Autenticazione con HTTP Basic Authentication riuscita!" << std::endl;
+            }
         }
     }
-
-  std::cout << "Retrieving " << filename;
-  if (soap->http_content)
-    std::cout << " of type " << soap->http_content;
-  std::cout << " from " << endpoint << std::endl;
-*/
-  // this example stores the whole image in memory first, before saving it to the file
-  // better is to copy the source code of soap_http_get_body here and
-  // modify it to save data directly to the file.
-
-  if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap))
-  {
-    std::cout << "HTTP status: " << soap->status << " | Auth realm: " 
-              << (soap->authrealm ? soap->authrealm : "None") << std::endl;
-
-    if (soap->status == 401 && soap->authrealm)
+    else
     {
-      std::cout << "1STATO: " << soap->status << std::endl;
-      
-      // Attempt with Digest Authentication
-      std::cout << "Tentativo con Digest Authentication..." << std::endl;
-      std::cout << "2STATO: " << soap->status << std::endl;
-     // soap->authrealm = 
-      soap_strdup(soap, soap->authrealm);
-    http_da_save(soap, &info, soap->authrealm, USERNAME, PASSWORD);
-    if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap)){// make a call with authentication
-      std::cout << "Errore con Digest Authentication..." << std::endl;}
-   std::cout << "3STATO: " << soap->status << std::endl;
-     http_da_release(soap, &info); // release if auth is no longer needed
-
-      std::cout << "4STATO: " << soap->status << std::endl;
-     // soap->authrealm = soap_strdup(soap, soap->authrealm);
-
-     // soap->userid = USERNAME;
-      std::cout <<"mi trovo tra userid e password" << std::endl;
-     // soap->passwd = PASSWORD;
-      std::cout <<"mi trovo tra  password e authrealm" << std::endl;
-      // Set realm
-      std::cout <<"mi trovo tra  dopo  authrealm" << std::endl;
-     // std::cout << "Received Digest challenge!" << " User: " << soap->userid << " Password: " << soap->passwd <<  " STATO: " << soap->status  << std::endl;
-     // std::cout << " Password: " << soap->passwd << std::endl;
-
-     // std::cout << soap->userid << " - " << soap->passwd << " - " << soap->authrealm  <<std::endl;
-      
-
-
-      if (soap_wsse_add_UsernameTokenDigest(soap, "auth", USERNAME, PASSWORD))
-       {
-       
-       report_error(soap, __LINE__);
-       }
-
-      //if (soap_GET(soap, endpoint, NULL) || soap_begin_recv(soap))
-     // {
-      //  std::cerr << "Digest Authentication fallita." << std::endl;
-     //   report_error(soap, __LINE__);
-     // }
-      else
-      {
         std::cout << "Autenticazione con Digest Authentication riuscita!" << std::endl;
-      }
     }
-  }
 
-  std::cout << "Retrieving " << filename;
-  if (soap->http_content)
-    std::cout << " of type " << soap->http_content;
-  std::cout << " from " << endpoint << std::endl;
+    std::cout << "Retrieving " << filename;
+    if (soap->http_content)
+        std::cout << " of type " << soap->http_content;
+    std::cout << " from " << endpoint << std::endl;
 
-  size_t imagelen;
-  char *image = soap_http_get_body(soap, &imagelen); // NOTE: soap_http_get_body was renamed from soap_get_http_body in gSOAP 2.8.73
-   if (!image) {
+    size_t imagelen;
+    char *image = soap_http_get_body(soap, &imagelen); // NOTE: soap_http_get_body was renamed from soap_get_http_body in gSOAP 2.8.73
+    if (!image) {
         std::cerr << "Errore nel recupero del corpo HTTP" << std::endl;
         report_error(soap, __LINE__);
     }
-  soap_end_recv(soap);
-  
-  fwrite(image, 1, imagelen, fd);
-  fclose(fd);
+    soap_end_recv(soap);
 
-  //cleanup
-  soap_destroy(soap);
-  soap_end(soap);
-  soap_free(soap);
+    fwrite(image, 1, imagelen, fd);
+    fclose(fd);
+
+    //cleanup
+    soap_destroy(soap);
+    soap_end(soap);
+    soap_free(soap);
 }
+
 
 int main()
 {
