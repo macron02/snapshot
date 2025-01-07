@@ -9,6 +9,8 @@
 #include "wsseapi.h"
 #include "wsdd.nsmap"
 #include "httpda.h"
+//SSSS#include "thermal.h"
+
     
 #include <regex>
 #include <iostream>
@@ -17,7 +19,7 @@
 
 #define USERNAME "admin"
 #define PASSWORD "Password_01"
-#define HOSTNAME "192.168.20.123"
+#define HOSTNAME "192.168.20.104"
 
 int CRYPTO_thread_setup();
 void CRYPTO_thread_cleanup();
@@ -147,7 +149,57 @@ void save_snapshot(int i, const char *endpoint)
     soap_end(soap);
     soap_free(soap);
 }
+/*
+void get_thermal_info() {
+    struct soap *soap = soap_new1(SOAP_XML_CANONICAL);
+    soap->connect_timeout = soap->recv_timeout = soap->send_timeout = 10; // 10 sec
+    soap_register_plugin(soap, soap_wsse);
 
+    if (soap_ssl_client_context(soap, SOAP_SSL_NO_AUTHENTICATION, NULL, NULL, NULL, NULL, NULL))
+        report_error(soap, __LINE__);
+
+    DeviceBindingProxy proxyDevice(soap);
+    ThermalBindingProxy proxyThermal(soap);
+
+    set_device_endpoint(&proxyDevice);
+    _tds__GetDeviceInformation GetDeviceInformation;
+    _tds__GetDeviceInformationResponse GetDeviceInformationResponse;
+    set_credentials(soap);
+    if (proxyDevice.GetDeviceInformation(&GetDeviceInformation, GetDeviceInformationResponse))
+        report_error(soap, __LINE__);
+    std::cout << "Manufacturer:    " << GetDeviceInformationResponse.Manufacturer << std::endl;
+    std::cout << "Model:           " << GetDeviceInformationResponse.Model << std::endl;
+
+    _trt__GetProfiles GetProfiles;
+    _trt__GetProfilesResponse GetProfilesResponse;
+    set_credentials(soap);
+    if (proxyDevice.GetProfiles(&GetProfiles, GetProfilesResponse))
+        report_error(soap, __LINE__);
+
+    for (int i = 0; i < GetProfilesResponse.Profiles.size(); ++i) {
+        _trt__GetStreamUri GetStreamUri;
+        _trt__GetStreamUriResponse GetStreamUriResponse;
+        GetStreamUri.ProfileToken = GetProfilesResponse.Profiles[i]->token;
+        set_credentials(soap);
+        if (proxyDevice.GetStreamUri(&GetStreamUri, GetStreamUriResponse))
+            report_error(soap, __LINE__);
+        std::cout << "Stream URI: " << GetStreamUriResponse.MediaUri->Uri << std::endl;
+
+        // Recupera le informazioni termiche
+        _trt__GetSnapshotUri GetSnapshotUri;
+        _trt__GetSnapshotUriResponse GetSnapshotUriResponse;
+        GetSnapshotUri.ProfileToken = GetProfilesResponse.Profiles[i]->token;
+        set_credentials(soap);
+        if (proxyThermal.GetSnapshotUri(&GetSnapshotUri, GetSnapshotUriResponse))
+            report_error(soap, __LINE__);
+        std::cout << "Snapshot URI: " << GetSnapshotUriResponse.MediaUri->Uri << std::endl;
+    }
+
+    soap_destroy(soap);
+    soap_end(soap);
+    soap_free(soap);
+}
+*/
 
 
 int main()
@@ -234,6 +286,7 @@ int main()
   if (proxyMedia.GetProfiles(&GetProfiles, GetProfilesResponse))
     report_error(soap, __LINE__);
   check_response(soap);
+  
 
   // for each profile get snapshot
   for (int i = 0; i < GetProfilesResponse.Profiles.size(); ++i)
@@ -274,6 +327,7 @@ int main()
     if (GetSnapshotUriResponse.MediaUri)
       save_snapshot(i, GetSnapshotUriResponse.MediaUri->Uri.c_str());
   }
+  //get_thermal_info();
 
   
 
